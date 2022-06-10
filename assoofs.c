@@ -6,6 +6,8 @@
 #include <linux/slab.h>         /* kmem_cache            */
 #include "assoofs.h"
 
+MODULE_LICENSE("GPL");
+
 /* 
  *  PROTOTIPOS (No sé si hace falta declararlas aquí o no)
  */
@@ -91,11 +93,10 @@ struct assoofs_inode_info *assoofs_get_inode_info(struct super_block *sb, uint64
     struct buffer_head *bh;
     struct assoofs_super_block_info *afs_sb = sb -> s_fs_info;
     struct assoofs_inode_info *buffer = NULL;
+    int i;
 
     bh = sb_bread(sb, ASSOOFS_INODESTORE_BLOCK_NUMBER);
     inode_info = (struct assoofs_inode_info *) bh -> b_data; //Puntero al principio del almacen de inodos
-
-    int i;
 
     for (i = 0; i < afs_sb -> inodes_count; i++) { 
         if (inode_info -> inode_no == inode_no) {
@@ -128,6 +129,7 @@ int assoofs_fill_super(struct super_block *sb, void *data, int silent) {
     //struct inode *root_inode; //crear un inodo (inodo en memoria(struct inode))
     struct buffer_head *bh;
     struct assoofs_super_block_info *assoofs_sb;
+    struct inode *root_inode;
     
     printk(KERN_INFO "assoofs_fill_super request\n");
 
@@ -163,7 +165,7 @@ int assoofs_fill_super(struct super_block *sb, void *data, int silent) {
     sb -> s_fs_info = assoofs_sb; // fs.h = libreria generica -> sistema de ficheros basados en inodos
 
     // 4.- Crear el inodo raíz y asignarle operaciones sobre inodos (i_op) y sobre directorios (i_fop)
-    struct inode *root_inode;
+
     root_inode = new_inode(sb); //Creación
     inode_init_owner(sb -> s_user_ns, root_inode, NULL, S_IFDIR); //S_IFDIR para directorios, S_IFREG para ficheros ----- El primer argumento puede ser directamente "root_inode"?
 
@@ -193,11 +195,21 @@ int assoofs_fill_super(struct super_block *sb, void *data, int silent) {
 /*
  *  Montaje de dispositivos assoofs 
  */
+
+/* APARTADO 2.3.3 */
 static struct dentry *assoofs_mount(struct file_system_type *fs_type, int flags, const char *dev_name, void *data) {
-    struct dentry *ret;
-    printk(KERN_INFO "assoofs_mount request\n");
-    ret = mount_bdev(fs_type, flags, dev_name, data, assoofs_fill_super);
+    struct dentry *ret = mount_bdev(fs_type, flags, dev_name, data, assoofs_fill_super);
+    
+    printk(KERN_INFO "assoofs_mount request\n");  
     // Control de errores a partir del valor de ret. En este caso se puede utilizar la macro IS_ERR: if (IS_ERR(ret)) ...
+    if (IS_ERR(ret)) {
+        printk(KERN_INFO "mount ERROR\n");
+
+        return NULL;
+    } else {
+        printk(KERN_INFO "mount SUCCESFUL\n");
+    }
+
     return ret;
 }
 
@@ -212,18 +224,30 @@ static struct file_system_type assoofs_type = {
     .kill_sb = kill_litter_super,
 };
 
+/* APARTADO 2.3.2 */
 static int __init assoofs_init(void) {
-    int ret;
+    int ret = register_filesystem(&assoofs_type);
     printk(KERN_INFO "assoofs_init request\n");
-    ret = register_filesystem(&assoofs_type);
+    
+    if (ret != 0) {
+        printk(KERN_INFO "assoofs register failed\n");
+        return -1;
+    }
+
+    printk(KERN_INFO "assoofs succesfully registered\n");
     // Control de errores a partir del valor de ret
-    return ret;
+    return 0;
 }
 
 static void __exit assoofs_exit(void) {
-    int ret;
+    int ret = unregister_filesystem(&assoofs_type);
     printk(KERN_INFO "assoofs_exit request\n");
-    ret = unregister_filesystem(&assoofs_type);
+    
+    if (ret != 0) {
+        printk(KERN_INFO "assoofs unregistered failed\n");
+    } else {
+        printk(KERN_INFO "assoofs succesfully registered\n");
+    }
     // Control de errores a partir del valor de ret
 }
 

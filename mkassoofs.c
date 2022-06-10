@@ -117,13 +117,13 @@ int main(int argc, char *argv[])
         .inode_no = WELCOMEFILE_INODE_NUMBER,
         .data_block_number = WELCOMEFILE_DATABLOCK_NUMBER,
         .file_size = sizeof(welcomefile_body),
-	.remove_flag = NO_REMOVED,
+	    //.remove_flag = NO_REMOVED,
     };
     
     struct assoofs_dir_record_entry record = {
         .filename = "README.txt",
         .inode_no = WELCOMEFILE_INODE_NUMBER,
-	.remove_flag = NO_REMOVED,
+	    //.remove_flag = NO_REMOVED,
     };
 
     if (argc != 2) {
