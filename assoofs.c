@@ -17,7 +17,7 @@
 /* 2.3.4. Función para inicializar el superbloque */
 //int assoofs_fill_super(struct super_block *sb, void *data, int silent);
 
-
+//static inline void d_add(struct dentry *entry, struct inode *inode);
 
 
 /*
@@ -89,7 +89,7 @@ static int assoofs_mkdir(struct user_namespace *mnt_userns, struct inode *dir , 
 struct assoofs_inode_info *assoofs_get_inode_info(struct super_block *sb, uint64_t inode_no) {
     struct assoofs_inode_info *inode_info = NULL;
     struct buffer_head *bh;
-    struct assoofs_sueper_block_info *afs_sb = sb -> s_fs_info;
+    struct assoofs_super_block_info *afs_sb = sb -> s_fs_info;
     struct assoofs_inode_info *buffer = NULL;
 
     bh = sb_bread(sb, ASSOOFS_INODESTORE_BLOCK_NUMBER);
@@ -163,6 +163,7 @@ int assoofs_fill_super(struct super_block *sb, void *data, int silent) {
     sb -> s_fs_info = assoofs_sb; // fs.h = libreria generica -> sistema de ficheros basados en inodos
 
     // 4.- Crear el inodo raíz y asignarle operaciones sobre inodos (i_op) y sobre directorios (i_fop)
+    struct inode *root_inode;
     root_inode = new_inode(sb); //Creación
     inode_init_owner(sb -> s_user_ns, root_inode, NULL, S_IFDIR); //S_IFDIR para directorios, S_IFREG para ficheros ----- El primer argumento puede ser directamente "root_inode"?
 
@@ -170,13 +171,11 @@ int assoofs_fill_super(struct super_block *sb, void *data, int silent) {
     root_inode -> i_sb = sb; //puntero al superbloque asociado a este inodo
     root_inode -> i_op = &assoofs_inode_ops; //operaciones en inodo, la variable &assoofs... contiene las funciones para trabajar con inodos
     root_inode -> i_fop = &assoofs_dir_operations; //operaciones para directorios = funciones
-    root_inode -> i_atime = root_inode -> i_mtime = i_mtime = root_inode -> i_ctime = current_time(root_inode); //fechas (actual, acceso, modificación)
+    root_inode -> i_atime = root_inode -> i_mtime = root_inode -> i_ctime = current_time(root_inode); //fechas (actual, acceso, modificación)
     root_inode -> i_private = assoofs_get_inode_info(sb, ASSOOFS_ROOTDIR_INODE_NUMBER); // (superbloque, nº inodo)
-
-    /* NO ESTOY SEGURO DE SI ESTO ES SECUENCIAL O HAY QUE HACER CONDICIONES CON IFS */
+  
     sb -> s_root = d_make_root(root_inode); //campo s_root (del superbloque) va a contener la dirección de memoria que devuelve la función d_make_root cuando se le pasa el root_inode
-    d_add(dentry, inode);
-    /************************************************/
+    //d_add(dentry, inode);
 
     if (!sb -> s_root) { //Comprueba si ha habido algún error en s_root
         brelse(bh);
