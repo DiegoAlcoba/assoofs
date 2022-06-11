@@ -9,18 +9,10 @@
 MODULE_LICENSE("GPL");
 
 /* 
- *  PROTOTIPOS (No sé si hace falta declararlas aquí o no)
+ *  PROTOTIPOS
  */
-/* 2.3.2. Inicializar y registrar el nuevo sistema de ficheros en el kernel */
-// extern int register_filesystem(struct file_system_type *);
-// extern int unregister_filesystem(struct file_system_type *);
-/* 2.3.3. Función que permita montar dispositivos con el nuevo sistema de ficheros */ 
-// extern struct dentry *mount_bdev(struct file_system_type *fs_type, int flags, const char *dev_name, void *data, int (*fill_super)(struct super_block *, void *, int));
-/* 2.3.4. Función para inicializar el superbloque */
-//int assoofs_fill_super(struct super_block *sb, void *data, int silent);
-
-//static inline void d_add(struct dentry *entry, struct inode *inode);
-
+struct assoofs_inode_info *assoofs_get_inode_info(struct super_block *sb, uint64_t inode_no);
+static strutc inode *assoofd_get_inode(struct super_block *sb, int ino);
 
 /*
  *  Operaciones sobre ficheros
@@ -63,13 +55,42 @@ static int assoofs_create(struct user_namespace *mnt_userns, struct inode *dir, 
 struct dentry *assoofs_lookup(struct inode *parent_inode, struct dentry *child_dentry, unsigned int flags);
 static int assoofs_mkdir(struct user_namespace *mnt_userns, struct inode *dir , struct dentry *dentry, umode_t mode);
 static struct inode_operations assoofs_inode_ops = {
-    .create = assoofs_create,
-    .lookup = assoofs_lookup,
-    .mkdir = assoofs_mkdir,
+    .create = assoofs_create, //crear inodos
+    .lookup = assoofs_lookup, //recorre el arbol de inodos y dado un nombre de fichero obtener su ID(inodo)
+    .mkdir = assoofs_mkdir, //crear directorios
 };
 
 struct dentry *assoofs_lookup(struct inode *parent_inode, struct dentry *child_dentry, unsigned int flags) {
+    //1
+    struct assoofs_inode_info *parent_info = parent_inode -> i_private;
+    struct super_block *sb = parent_inode -> i_sb;
+    struct buffer_head *bh;
+    //2
+    struct assoofs_dir_record_entry *record;
+    struct inode *inode;
+    
+    int i;
+        
     printk(KERN_INFO "Lookup request\n");
+
+    /* 1. Acceder al bloque de disco con el contenido del directorio apuntado por parent_inode */
+    bh = sb_bread(sb, parent_info -> data_block_number);
+    /* 2. Recorrer el contenido del directorio buscando la entrada cuyo nombre se corresponda con el que buscamos. Si se localiza la entrada, entonces tenemos que construir el inodo correspondiente */
+    record = (struct assoofs_dir_record_entry *) bh -> b_data;
+
+    for (i = 0; i < parent_info -> dir_children_count; i++) {
+        if (!strcmp(record -> filename, child_dentry -> d_name.name)) {
+            inode = assoofs_get_inode(sb, record -> inode_no); //Función que obtiene la informaciónde un inodo a partir de su número de inodo
+            inode_init_owner(inode, parent_inode, ((struct assoofs_inode_info *) inode -> i_private) -> mode);
+            d_add(child_dentry, inode);
+
+            return NULL;
+        }
+        record++;
+    }
+
+    printk(KERN_ERR "No inode found for the filename [%s]\n", child_dentry -> d_name.name);
+
     return NULL;
 }
 
@@ -110,6 +131,35 @@ struct assoofs_inode_info *assoofs_get_inode_info(struct super_block *sb, uint64
     brelse(bh);
 
     return buffer;
+}
+
+static struct inode *assoofs_get_inode(struct super_block *sb, int ino) {
+    /* 1. Obtener la información persistente del inodo ino. Ver la función auxiliar assoofs_get_inode_info descrita anteriormente */
+    struct inode *inode;
+    struct assoofs_inode_info *inode_info; 
+    inode_info = assoofs_get_inode_info(sb, ino);
+
+    /* 2. Crear una nueva variable de tipo struct inode e inicializarla con la función new_inode (antes creada) Asignar valores a los campos i_ino, i_sb, i_op, i_fop, i_atime, i_mtime, i_ctime e i_private del nuevo inodo */
+    inode = new_inode(sb);
+    inode -> i_ino = ino; //nº del inodo
+    inode -> i_sb = sb; //puntero al superbloque
+    inode -> i_op = assoofs_inode_ops; //dirección de una variable de tipo struct inode_operations previamente declarada
+    //2.1
+    if (S_ISDIR(inode_info -> mode)){ //S_ISDIR: macro
+        inode -> i_fop = &assoofs_dir_operations;
+    } else if (S_ISREG(inode_info -> mode)) {
+        inode -> i_fop = &assoofs_file_operations;
+    } else {
+        printk(KERN_ERR "Unknown inode type. Neither a directory nor a file");
+    }
+    //2.2
+    inode -> i_atime = inode -> i_mtime = inode -> i_ctime = current_time(inode); //fechas
+    //2.3 
+    inode -> i_private = inode_info;
+
+    /* Por último, devolvemos el inodo inode recién creado */
+    return inode;
+    
 }
 
 
