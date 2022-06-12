@@ -14,6 +14,8 @@ MODULE_LICENSE("GPL");
 struct assoofs_inode_info *assoofs_get_inode_info(struct super_block *sb, uint64_t inode_no);
 static struct inode *assoofs_get_inode(struct super_block *sb, int ino);
 
+int assoofs_sb_get_a_freeblock(struct super_block *sb, uint64_t *block);
+
 /*
  *  Operaciones sobre ficheros
  */
@@ -232,6 +234,24 @@ static struct inode *assoofs_get_inode(struct super_block *sb, int ino) {
     
 }
 
+int assoofs_sb_get_a_freeblock(struct super_block *sb, uint64_t *block) {
+
+    //Obtenemos la información persistente del superbloque que previamente habiamos guardado en s_fs_info
+    struct assoofs_super_block_info *assoofs_sb = sb -> s_fs_info;
+    //Recorremos el mapa de bit en busca de un bloque libre (bit = 1)
+    int i;
+
+    for (i = 2; i < ASSOOFS_MAX_FILESYSTEM_OBJECTS_SUPPORTED; i++) //Empiezo desde el 2 (Bloque 0 = sb, Bloque 1 = almacen de inodos)
+        if (assoofs_sb -> free_blocks & (1 << i)) //Operacion binaria que comprueba si el bit correspondiente a la iteracion esta disponible o no (valor > 0 = disponible)
+            break; //cuando aparece el primer bit 1 en free_block dejamos de recorres le mapa de bits, i tiene la posicion del primer bloque libre 
+
+    *block = i;
+    //Hay que actualizar el valor de free_blocks y guardar los cambios en el superbloque
+    assoofs_sb -> free_blocks &= ~(1 << i);
+    assoofs_save_sb_info(sb);
+
+    return 0; //Devuelve 0 si todo va bien
+}
 
 /*
  *  Operaciones sobre el superbloque
