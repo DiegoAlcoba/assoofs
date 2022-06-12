@@ -12,7 +12,7 @@ MODULE_LICENSE("GPL");
  *  PROTOTIPOS
  */
 struct assoofs_inode_info *assoofs_get_inode_info(struct super_block *sb, uint64_t inode_no);
-static strutc inode *assoofd_get_inode(struct super_block *sb, int ino);
+static struct inode *assoofs_get_inode(struct super_block *sb, int ino);
 
 /*
  *  Operaciones sobre ficheros
@@ -81,7 +81,7 @@ struct dentry *assoofs_lookup(struct inode *parent_inode, struct dentry *child_d
     for (i = 0; i < parent_info -> dir_children_count; i++) {
         if (!strcmp(record -> filename, child_dentry -> d_name.name)) {
             inode = assoofs_get_inode(sb, record -> inode_no); //Función que obtiene la informaciónde un inodo a partir de su número de inodo
-            inode_init_owner(inode, parent_inode, ((struct assoofs_inode_info *) inode -> i_private) -> mode);
+            inode_init_owner(sb -> s_user_ns, inode, parent_inode, ((struct assoofs_inode_info *) inode -> i_private) -> mode);
             d_add(child_dentry, inode);
 
             return NULL;
@@ -143,7 +143,7 @@ static struct inode *assoofs_get_inode(struct super_block *sb, int ino) {
     inode = new_inode(sb);
     inode -> i_ino = ino; //nº del inodo
     inode -> i_sb = sb; //puntero al superbloque
-    inode -> i_op = assoofs_inode_ops; //dirección de una variable de tipo struct inode_operations previamente declarada
+    inode -> i_op = &assoofs_inode_ops; //dirección de una variable de tipo struct inode_operations previamente declarada
     //2.1
     if (S_ISDIR(inode_info -> mode)){ //S_ISDIR: macro
         inode -> i_fop = &assoofs_dir_operations;
