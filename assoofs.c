@@ -33,6 +33,7 @@ ssize_t assoofs_read(struct file * filp, char __user * buf, size_t len, loff_t *
     struct buffer_head *bh;
     char *buffer;
     int nbytes;
+    int a;
 
     /*Obtener la informacion persistente del inodo a partir de filp*/
     struct assoofs_inode_info *inode_info = filp -> f_path.dentry -> d_inode -> i_private;
@@ -48,7 +49,7 @@ ssize_t assoofs_read(struct file * filp, char __user * buf, size_t len, loff_t *
 
     /*Copiar en el buffer "buf" el contenido del fichero leído en el paso anterior con la función copy_to_user*/
     nbytes = min((size_t) inode_info -> file_size, len); //Hay que comparar len con el tamaño del fichero por si llegamos al final del fichero
-    copy_to_user(buf, buffer, nbytes);
+    a = copy_to_user(buf, buffer, nbytes);
 
     /*Incrementar el valor de ppos y devolver el nº de bytes leídos*/
     *ppos += nbytes;
@@ -62,6 +63,7 @@ ssize_t assoofs_write(struct file * filp, const char __user * buf, size_t len, l
     struct buffer_head *bh;
     char *buffer;
     struct super_block *sb  = filp -> f_path.dentry -> d_inode -> i_sb;
+    int a;
 
     /*Obtener la informacion persistente del inodo a partir de filp*/
     struct assoofs_inode_info *inode_info = filp -> f_path.dentry -> d_inode -> i_private;
@@ -78,7 +80,7 @@ ssize_t assoofs_write(struct file * filp, const char __user * buf, size_t len, l
     buffer += *ppos; //Incrementamos el puntero tanto como indique ppos(donde apunta el fichero)
 
     /*Escribir en el fichero los datos obtenidos de buf*/
-    copy_from_user(buffer, buf, len);
+    a = copy_from_user(buffer, buf, len);
 
     /*Incrementar el valor de ppos, marcar el bloque como sucio y sincronizarlo*/
     *ppos += len;
