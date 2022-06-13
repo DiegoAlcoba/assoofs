@@ -7,7 +7,6 @@
 #include "assoofs.h"
 
 MODULE_LICENSE("GPL");
-//MODULE_AUTHOR("Angel Manuel Guerrero Higueras");
 
 /* 
  *  PROTOTIPOS
@@ -72,7 +71,7 @@ ssize_t assoofs_write(struct file * filp, const char __user * buf, size_t len, l
     printk(KERN_INFO "Write request\n");
 
     /*Comprobar el valor de ppos por si se ha alcanzado el final del fichero*/
-    if (*ppos >= inode_info -> file_size) return 0;
+    if (*ppos >= ASSOOFS_DEFAULT_BLOCK_SIZE) return 0;
 
     /*Acceder al contenido del fichero*/
     bh = sb_bread(filp -> f_path.dentry -> d_inode -> i_sb, inode_info -> data_block_number);
@@ -310,7 +309,7 @@ static int assoofs_mkdir(struct user_namespace *mnt_userns, struct inode *dir , 
     inode -> i_fop = &assoofs_dir_operations;
 
     //Asignamos propietario y permisos, y guardamos el nuevo inodo en el árbol de directorios
-    inode_init_owner(sb -> s_user_ns, inode, dir, mode);
+    inode_init_owner(mnt_userns, inode, dir, inode_info -> mode);
     d_add(dentry, inode);
 
     printk(KERN_INFO "Guardada la información necesaria en el nodo\n");
