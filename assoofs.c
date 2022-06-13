@@ -8,8 +8,6 @@
 
 MODULE_LICENSE("GPL");
 
-// PRGUNTAR SI EL ORDEN DE LAS FUNCIONES IMPORTA
-
 /* 
  *  PROTOTIPOS
  */
@@ -20,7 +18,6 @@ int assoofs_sb_get_a_freeblock(struct super_block *sb, uint64_t *block);
 void assoofs_save_sb_info(struct super_block *vsb);
 void assoofs_add_inode_info(struct super_block *sb, struct assoofs_inode_info *inode);
 int assoofs_save_inode_info(struct super_block *sb, struct assoofs_inode_info *inode_info);
-
 
 /*
  *  Operaciones sobre ficheros
@@ -64,7 +61,7 @@ ssize_t assoofs_read(struct file * filp, char __user * buf, size_t len, loff_t *
 ssize_t assoofs_write(struct file * filp, const char __user * buf, size_t len, loff_t * ppos) {
     struct buffer_head *bh;
     char *buffer;
-    int nbytes;
+    struct super_block *sb  = filp -> f_path.dentry -> d_inode -> i_sb;
 
     /*Obtener la informacion persistente del inodo a partir de filp*/
     struct assoofs_inode_info *inode_info = filp -> f_path.dentry -> d_inode -> i_private;
@@ -200,7 +197,7 @@ static int assoofs_create(struct user_namespace *mnt_userns, struct inode *dir, 
     uint64_t count;
     struct assoofs_inode_info *inode_info;
     //2
-    struct asoofs_inode_info *parent_inode_info;
+    struct assoofs_inode_info *parent_inode_info;
     struct assoofs_dir_record_entry *dir_contents;
     struct buffer_head *bh;
 
@@ -277,7 +274,7 @@ static int assoofs_mkdir(struct user_namespace *mnt_userns, struct inode *dir , 
     uint64_t count;
     struct assoofs_inode_info *inode_info;
     //2
-    struct asoofs_inode_info *parent_inode_info;
+    struct assoofs_inode_info *parent_inode_info;
     struct assoofs_dir_record_entry *dir_contents;
     struct buffer_head *bh;
 
@@ -352,7 +349,6 @@ static int assoofs_mkdir(struct user_namespace *mnt_userns, struct inode *dir , 
 
     return 0;
 }
-
 
 /*
  *  FUNCIONES AUXILIARES
@@ -504,7 +500,7 @@ struct assoofs_inode_info *assoofs_search_inode_info(struct super_block *sb, str
     if (start -> inode_no == search -> inode_no)
         return start;
     else
-        return NULL
+        return NULL;
 }
 
 /*
@@ -513,8 +509,6 @@ struct assoofs_inode_info *assoofs_search_inode_info(struct super_block *sb, str
 static const struct super_operations assoofs_sops = {
     .drop_inode = generic_delete_inode,
 };
-
-/*********************************************************************************************************************************************************************************/
 
 /*
  *  Inicialización del superbloque
@@ -582,8 +576,6 @@ int assoofs_fill_super(struct super_block *sb, void *data, int silent) {
 
     return 0;
 }
-
-/**************************************************************************************************************************************************************************************/
 
 /*
  *  Montaje de dispositivos assoofs 
