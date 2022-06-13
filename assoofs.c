@@ -15,12 +15,12 @@ MODULE_LICENSE("GPL");
  */
 struct assoofs_inode_info *assoofs_get_inode_info(struct super_block *sb, uint64_t inode_no);
 static struct inode *assoofs_get_inode(struct super_block *sb, int ino);
-
+struct assoofs_inode_info *assoofs_search_inode_info(struct super_block *sb, struct assoofs_inode_info *start, struct assoofs_inode_info *search);
 int assoofs_sb_get_a_freeblock(struct super_block *sb, uint64_t *block);
 void assoofs_save_sb_info(struct super_block *vsb);
 void assoofs_add_inode_info(struct super_block *sb, struct assoofs_inode_info *inode);
 int assoofs_save_inode_info(struct super_block *sb, struct assoofs_inode_info *inode_info);
-struct assoofs_inode_info *assoofs_search_inode_info(struct super_block *sb, struct assoofs_inode_info *start, struct assoofs_inode_info *search);
+
 
 /*
  *  Operaciones sobre ficheros
@@ -62,8 +62,40 @@ ssize_t assoofs_read(struct file * filp, char __user * buf, size_t len, loff_t *
 }
 
 ssize_t assoofs_write(struct file * filp, const char __user * buf, size_t len, loff_t * ppos) {
+    struct buffer_head *bh;
+    char *buffer;
+    int nbytes;
+
+    /*Obtener la informacion persistente del inodo a partir de filp*/
+    struct assoofs_inode_info *inode_info = filp -> f_path.dentry -> d_inode -> i_private;
+        
     printk(KERN_INFO "Write request\n");
-    return 0;
+
+    /*Comprobar el valor de ppos por si se ha alcanzado el final del fichero*/
+    if (*ppos >= inode_info -> file_size) return 0;
+
+    /*Acceder al contenido del fichero*/
+    bh = sb_bread(filp -> f_path.dentry -> d_inode -> i_sb, inode_info -> data_block_number);
+    buffer = (char *)bh -> b_data;
+
+    buffer += *ppos; //Incrementamos el puntero tanto como indique ppos(donde apunta el fichero)
+
+    /*Escribir en el fichero los datos obtenidos de buf*/
+    copy_from_user(buffer, buf, len);
+
+    /*Incrementar el valor de ppos, marcar el bloque como sucio y sincronizarlo*/
+    *ppos += len;
+    mark_buffer_dirty(bh);
+    sync_dirty_buffer(bh);
+    brelse(bh);
+    
+    /*Actualizar el campo file_size de la información persistente del inodo y devovler el nº de bytes escritos*/
+    inode_info -> file_size = *ppos;
+    assoofs_save_inode_info(sb, inode_info);
+    
+    printk(KERN_INFO "Operación de escritura completa");
+    
+    return len;
 }
 
 /*
@@ -454,7 +486,8 @@ int assoofs_save_inode_info(struct super_block *sb, struct assoofs_inode_info *i
     memcpy(inode_pos, inode_info, sizeof(*inode_pos));
     mark_buffer_dirty(bh);
     sync_dirty_buffer(bh);
-    //brelse(bh); (?)
+    brelse(bh);
+
     //Si todo va bien devuelve 0
     return 0;
 }
@@ -487,7 +520,6 @@ static const struct super_operations assoofs_sops = {
  *  Inicialización del superbloque
  */
 int assoofs_fill_super(struct super_block *sb, void *data, int silent) {   
-    //struct inode *root_inode; //crear un inodo (inodo en memoria(struct inode))
     struct buffer_head *bh;
     struct assoofs_super_block_info *assoofs_sb;
     struct inode *root_inode;
