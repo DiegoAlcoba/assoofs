@@ -7,7 +7,7 @@
 #include "assoofs.h"
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Angel Manuel Guerrero Higueras");
+//MODULE_AUTHOR("Angel Manuel Guerrero Higueras");
 
 /* 
  *  PROTOTIPOS
@@ -87,7 +87,7 @@ ssize_t assoofs_write(struct file * filp, const char __user * buf, size_t len, l
     *ppos += len;
     mark_buffer_dirty(bh);
     sync_dirty_buffer(bh);
-    brelse(bh);
+    //brelse(bh);
     
     /*Actualizar el campo file_size de la información persistente del inodo y devovler el nº de bytes escritos*/
     inode_info -> file_size = *ppos;
