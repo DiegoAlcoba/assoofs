@@ -7,6 +7,7 @@
 #include "assoofs.h"
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Angel Manuel Guerrero Higueras");
 
 /* 
  *  PROTOTIPOS
